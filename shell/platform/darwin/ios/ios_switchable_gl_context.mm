@@ -8,6 +8,9 @@
 
 namespace flutter {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 IOSSwitchableGLContext::IOSSwitchableGLContext(EAGLContext* context) : context_(context){};
 
 bool IOSSwitchableGLContext::SetCurrent() {
@@ -22,4 +25,6 @@ bool IOSSwitchableGLContext::RemoveCurrent() {
   FML_DCHECK_CREATION_THREAD_IS_CURRENT(checker);
   return [EAGLContext setCurrentContext:previous_context_];
 };
+
+#pragma GCC diagnostic pop
 }  // namespace flutter

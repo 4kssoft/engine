@@ -16,6 +16,9 @@
 
 namespace flutter {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 class IOSSurfaceGL final : public IOSSurface, public GPUSurfaceGLDelegate {
  public:
   IOSSurfaceGL(fml::scoped_nsobject<CAEAGLLayer> layer, std::shared_ptr<IOSContext> context);
@@ -54,6 +57,8 @@ class IOSSurfaceGL final : public IOSSurface, public GPUSurfaceGLDelegate {
 
   FML_DISALLOW_COPY_AND_ASSIGN(IOSSurfaceGL);
 };
+
+#pragma GCC diagnostic pop
 
 }  // namespace flutter
 

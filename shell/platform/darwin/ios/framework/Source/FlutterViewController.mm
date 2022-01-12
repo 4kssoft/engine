@@ -8,6 +8,10 @@
 
 #include <memory>
 
+#ifdef TARGET_OS_TV
+#include <GameController/GameController.h>
+#endif
+
 #include "flutter/fml/memory/weak_ptr.h"
 #include "flutter/fml/message_loop.h"
 #include "flutter/fml/platform/darwin/platform_version.h"
@@ -34,10 +38,12 @@ static constexpr CGFloat kScrollViewContentSize = 2.0;
 
 NSNotificationName const FlutterSemanticsUpdateNotification = @"FlutterSemanticsUpdate";
 NSNotificationName const FlutterViewControllerWillDealloc = @"FlutterViewControllerWillDealloc";
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 NSNotificationName const FlutterViewControllerHideHomeIndicator =
     @"FlutterViewControllerHideHomeIndicator";
 NSNotificationName const FlutterViewControllerShowHomeIndicator =
     @"FlutterViewControllerShowHomeIndicator";
+    #endif
 
 // Struct holding the mouse state.
 typedef struct MouseState {
@@ -51,7 +57,13 @@ typedef struct MouseState {
 // This is left a FlutterBinaryMessenger privately for now to give people a chance to notice the
 // change. Unfortunately unless you have Werror turned on, incompatible pointers as arguments are
 // just a warning.
+#ifdef TARGET_OS_TV
+@interface FlutterViewController () <FlutterBinaryMessenger, UIScrollViewDelegate, UIGestureRecognizerDelegate>
+@property(nonatomic, strong) FlutterBasicMessageChannel* keyEventChannel;
+@property(nonatomic, strong) FlutterBasicMessageChannel* gamepadTouchEventChannel;
+#else
 @interface FlutterViewController () <FlutterBinaryMessenger, UIScrollViewDelegate>
+#endif
 @property(nonatomic, readwrite, getter=isDisplayingFlutterUI) BOOL displayingFlutterUI;
 @property(nonatomic, assign) BOOL isHomeIndicatorHidden;
 @property(nonatomic, assign) BOOL isPresentingViewControllerAnimating;
@@ -93,7 +105,9 @@ typedef enum UIAccessibilityContrast : NSInteger {
   fml::scoped_nsobject<UIView> _splashScreenView;
   fml::ScopedBlock<void (^)(void)> _flutterViewRenderedCallback;
   UIInterfaceOrientationMask _orientationPreferences;
+  #if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   UIStatusBarStyle _statusBarStyle;
+  #endif
   flutter::ViewportMetrics _viewportMetrics;
   BOOL _initialized;
   BOOL _viewOpaque;
@@ -104,7 +118,9 @@ typedef enum UIAccessibilityContrast : NSInteger {
   // UIScrollView with height zero and a content offset so we can get those events. See also:
   // https://github.com/flutter/flutter/issues/35050
   fml::scoped_nsobject<UIScrollView> _scrollView;
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   fml::scoped_nsobject<UIHoverGestureRecognizer> _hoverGestureRecognizer API_AVAILABLE(ios(13.4));
+#endif
   fml::scoped_nsobject<UIPanGestureRecognizer> _panGestureRecognizer API_AVAILABLE(ios(13.4));
   fml::scoped_nsobject<UIView> _keyboardAnimationView;
   MouseState _mouseState;
@@ -234,10 +250,10 @@ typedef enum UIAccessibilityContrast : NSInteger {
   }
 
   _initialized = YES;
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   _orientationPreferences = UIInterfaceOrientationMaskAll;
   _statusBarStyle = UIStatusBarStyleDefault;
-
+#endif
   [self setupNotificationCenterObservers];
 }
 
@@ -251,6 +267,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
 
 - (void)setupNotificationCenterObservers {
   NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
+  #if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [center addObserver:self
              selector:@selector(onOrientationPreferencesUpdated:)
                  name:@(flutter::kOrientationUpdateNotificationName)
@@ -260,7 +277,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
              selector:@selector(onPreferredStatusBarStyleUpdated:)
                  name:@(flutter::kOverlayStyleUpdateNotificationName)
                object:nil];
-
+#endif
   [center addObserver:self
              selector:@selector(applicationBecameActive:)
                  name:UIApplicationDidBecomeActiveNotification
@@ -280,7 +297,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
              selector:@selector(applicationDidEnterBackground:)
                  name:UIApplicationDidEnterBackgroundNotification
                object:nil];
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [center addObserver:self
              selector:@selector(applicationWillEnterForeground:)
                  name:UIApplicationWillEnterForegroundNotification
@@ -300,7 +317,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
              selector:@selector(onAccessibilityStatusChanged:)
                  name:UIAccessibilityVoiceOverStatusChanged
                object:nil];
-
+#endif
   [center addObserver:self
              selector:@selector(onAccessibilityStatusChanged:)
                  name:UIAccessibilitySwitchControlStatusDidChangeNotification
@@ -335,7 +352,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
              selector:@selector(onUserSettingsChanged:)
                  name:UIContentSizeCategoryDidChangeNotification
                object:nil];
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   [center addObserver:self
              selector:@selector(onHideHomeIndicatorNotification:)
                  name:FlutterViewControllerHideHomeIndicator
@@ -345,6 +362,7 @@ typedef enum UIAccessibilityContrast : NSInteger {
              selector:@selector(onShowHomeIndicatorNotification:)
                  name:FlutterViewControllerShowHomeIndicator
                object:nil];
+#endif
 }
 
 - (void)setInitialRoute:(NSString*)route {
@@ -369,11 +387,15 @@ static UIView* GetViewOrPlaceholder(UIView* existing_view) {
   auto placeholder = [[[UIView alloc] init] autorelease];
 
   placeholder.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+#ifdef TARGET_OS_TV 
+  placeholder.backgroundColor = UIColor.whiteColor;
+#else
   if (@available(iOS 13.0, *)) {
     placeholder.backgroundColor = UIColor.systemBackgroundColor;
   } else {
     placeholder.backgroundColor = UIColor.whiteColor;
   }
+  #endif
   placeholder.autoresizesSubviews = YES;
 
   // Only add the label when we know we have failed to enable tracing (and it was necessary).
@@ -397,7 +419,9 @@ static UIView* GetViewOrPlaceholder(UIView* existing_view) {
 
 - (void)loadView {
   self.view = GetViewOrPlaceholder(_flutterView.get());
+  #if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   self.view.multipleTouchEnabled = YES;
+  #endif
   self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
   [self installSplashScreenViewIfNecessary];
@@ -630,11 +654,120 @@ static void SendFakeTouchEvent(FlutterEngine* engine,
     [_engine.get() platformViewsController]->SetFlutterViewController(nullptr);
   }
 }
+#pragma mark - remote tap handling
+#ifdef TARGET_OS_TV
+- (void)sendTap:(int)keyCode withType:(NSString *)keyMapType ofType:(NSString*)type {
+    NSMutableDictionary* keyMessage = [@{
+      @"keymap" : keyMapType,
+      @"type" : type,
+      @"keyCode" : @(keyCode),
+      @"modifiers" : @(0),
+    } mutableCopy];
+    [self.keyEventChannel sendMessage:keyMessage];
+}
+- (void)handleTap: (UITapGestureRecognizer *)recognizer withType:(NSString *)keyMapType keyType:(int)key {
+    if (recognizer.state == UIGestureRecognizerStateBegan) {
+      [self sendTap:key withType:@"macos" ofType:@"keydown"];
+    } else if (recognizer.state == UIGestureRecognizerStateEnded) {
+      [self sendTap:key withType:@"macos" ofType:@"keyup"];
+    }
+}
+- (void)handleDownTap:(UITapGestureRecognizer *)recognizer {
+    [self handleTap:recognizer withType:@"macos" keyType:0x7D];
+}
+- (void)handleUpTap:(UITapGestureRecognizer *)recognizer {
+    [self handleTap:recognizer withType:@"macos" keyType:0x7E];
+}
+- (void)handleLeftTap:(UITapGestureRecognizer *)recognizer {
+    [self handleTap:recognizer withType:@"macos" keyType:0x7B];
+}
+- (void)handleRightTap:(UITapGestureRecognizer *)recognizer {
+    [self handleTap:recognizer withType:@"macos" keyType:0x7C];
+}
+- (void)handleCenterTap:(UITapGestureRecognizer *)recognizer {
+    [self handleTap:recognizer withType:@"macos" keyType:0x24];
+}
+- (void)handlePlayPauseTap:(UITapGestureRecognizer *)recognizer {
+    //No such key on macos so we fake android
+    [self handleTap:recognizer withType:@"android" keyType:0x55 ];
+}
+- (void)handleMenuTap:(UITapGestureRecognizer *)recognizer {
+//    [self handleTap:recognizer withType:@"macos" keyType:0x6E];
+  // TODO: should send key so that UI can handle raw event without a popRoute being triggered
+    [self popRoute];
+}
+- (void)createRecognizerFor:(UIPressType) pressType action:(nullable SEL)action {
+    UILongPressGestureRecognizer *tapGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:action];
+    tapGestureRecognizer.allowedPressTypes = @[@(pressType)];
+    tapGestureRecognizer.minimumPressDuration = 0.0;
+    tapGestureRecognizer.delegate = self;
+    [self.view addGestureRecognizer:tapGestureRecognizer];
+}
+
+
+- (void)sendGamepadTouchesWithType:(NSString*)type x:(float)x y:(float)y {
+    NSMutableDictionary* dictionary = [@{
+        @"type": type,
+        @"x" : @(x),
+        @"y" : @(y),
+    } mutableCopy];
+    [self.gamepadTouchEventChannel sendMessage:dictionary];
+}
+
+- (void)setupTouchesWithGamepad:(GCMicroGamepad *)gamepad {
+    gamepad.reportsAbsoluteDpadValues = true;
+    gamepad.dpad.valueChangedHandler = ^(GCControllerDirectionPad * _Nonnull dpad, float xValue, float yValue) {
+//        [self sendGamepadTouchesWithType:@"move2" x:xValue y:yValue];
+    };
+}
+
+- (void)setupControllers { //TODO dangerous, multiple registrations can happen!
+    bool atLeastOne = false;
+    for (GCController *controller in [GCController controllers]) {
+        GCMicroGamepad * gamepad = controller.microGamepad;
+        if (gamepad != nil) {
+            atLeastOne = true;
+            [self setupTouchesWithGamepad: gamepad];
+        }
+    }
+    if (!atLeastOne){
+        NSLog(@"No controllers found");
+    }
+}
+
+- (void)controllerConnected:(NSNotification*)notification {
+    [self setupControllers];
+}
+#endif //ifdef TARGET_OS_TV
 
 #pragma mark - UIViewController lifecycle notifications
 
 - (void)viewDidLoad {
   TRACE_EVENT0("flutter", "viewDidLoad");
+
+#ifdef TARGET_OS_TV
+  [self createRecognizerFor:UIPressTypeUpArrow action:@selector(handleUpTap:)];
+  [self createRecognizerFor:UIPressTypeDownArrow action:@selector(handleDownTap:)];
+  [self createRecognizerFor:UIPressTypeLeftArrow action:@selector(handleLeftTap:)];
+  [self createRecognizerFor:UIPressTypeRightArrow action:@selector(handleRightTap:)];
+  [self createRecognizerFor:UIPressTypeSelect action:@selector(handleCenterTap:)];
+  [self createRecognizerFor:UIPressTypePlayPause action:@selector(handlePlayPauseTap:)];
+  [self createRecognizerFor:UIPressTypeMenu action:@selector(handleMenuTap:)];
+
+  [self setupControllers];
+  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerConnected:) name:GCControllerDidConnectNotification object:nil];
+
+    self.keyEventChannel =
+    [FlutterBasicMessageChannel messageChannelWithName:@"flutter/keyevent"
+                                       binaryMessenger:[self binaryMessenger]
+                                                 codec:[FlutterJSONMessageCodec sharedInstance]
+     ];
+    self.gamepadTouchEventChannel =
+    [FlutterBasicMessageChannel messageChannelWithName:@"flutter/gamepadtouchevent"
+                                       binaryMessenger:[self binaryMessenger]
+                                                 codec:[FlutterJSONMessageCodec sharedInstance]
+     ];
+#endif //#ifdef TARGET_OS_TV
 
   if (_engine && _engineNeedsLaunch) {
     // Register internal plugins before starting the engine.
@@ -648,7 +781,7 @@ static void SendFakeTouchEvent(FlutterEngine* engine,
   if ([_engine.get() viewController] == self) {
     [_engine.get() attachView];
   }
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
   if (@available(iOS 13.4, *)) {
     _hoverGestureRecognizer.reset(
         [[UIHoverGestureRecognizer alloc] initWithTarget:self action:@selector(hoverEvent:)]);
@@ -662,7 +795,7 @@ static void SendFakeTouchEvent(FlutterEngine* engine,
     _panGestureRecognizer.get().allowedTouchTypes = @[ @(UITouchTypeIndirectPointer) ];
     [_flutterView.get() addGestureRecognizer:_panGestureRecognizer.get()];
   }
-
+#endif
   [super viewDidLoad];
 }
 
@@ -704,6 +837,9 @@ static void SendFakeTouchEvent(FlutterEngine* engine,
   }
 
   [super viewWillAppear:animated];
+    if (@available(iOS 13.4, tvOS 10.0, *)) {
+    [self dispatchPresses:nil];
+  }
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -1017,19 +1153,47 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 }
 
 - (void)touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
+    #ifdef TARGET_OS_TV
+    for (UITouch* touch in touches) {
+      CGPoint location = [touch locationInView:self.view];
+      [self sendGamepadTouchesWithType:@"started" x:location.x y:location.y];
+    }
+  #else
   [self dispatchTouches:touches pointerDataChangeOverride:nullptr event:event];
+  #endif
 }
 
 - (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event {
+    #ifdef TARGET_OS_TV
+    for (UITouch* touch in touches) {
+      CGPoint location = [touch locationInView:self.view];
+      [self sendGamepadTouchesWithType:@"move" x:location.x y:location.y];
+    }
+  #else
   [self dispatchTouches:touches pointerDataChangeOverride:nullptr event:event];
+  #endif
 }
 
 - (void)touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
+    #ifdef TARGET_OS_TV
+    for (UITouch* touch in touches) {
+      CGPoint location = [touch locationInView:self.view];
+      [self sendGamepadTouchesWithType:@"ended" x:location.x y:location.y];
+    }
+  #else
   [self dispatchTouches:touches pointerDataChangeOverride:nullptr event:event];
+  #endif
 }
 
 - (void)touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event {
+    #ifdef TARGET_OS_TV
+    for (UITouch* touch in touches) {
+      CGPoint location = [touch locationInView:self.view];
+      [self sendGamepadTouchesWithType:@"cancelled" x:location.x y:location.y];
+    }
+  #else
   [self dispatchTouches:touches pointerDataChangeOverride:nullptr event:event];
+  #endif
 }
 
 - (void)forceTouchesCancelled:(NSSet*)touches {
@@ -1046,12 +1210,16 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 }
 
 - (CGFloat)statusBarPadding {
+#ifdef TARGET_OS_TV
+  return 0.0;  
+#else
   UIScreen* screen = self.view.window.screen;
   CGRect statusFrame = [UIApplication sharedApplication].statusBarFrame;
   CGRect viewFrame = [self.view convertRect:self.view.bounds
                           toCoordinateSpace:screen.coordinateSpace];
   CGRect intersection = CGRectIntersection(statusFrame, viewFrame);
   return CGRectIsNull(intersection) ? 0.0 : intersection.size.height;
+#endif 
 }
 
 - (void)viewDidLayoutSubviews {
@@ -1121,6 +1289,9 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 #pragma mark - Keyboard events
 
 - (void)keyboardWillChangeFrame:(NSNotification*)notification {
+  #ifdef TARGET_OS_TV
+  CGRect keyboardFrame = CGRectMake(0.0, 0.0, self.view.bounds.size.width, 100.0);
+#else
   NSDictionary* info = [notification userInfo];
 
   if (@available(iOS 9, *)) {
@@ -1137,6 +1308,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
   }
 
   CGRect keyboardFrame = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
+#endif
   CGRect screenRect = [[UIScreen mainScreen] bounds];
 
   // Get the animation duration
@@ -1253,6 +1425,30 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
   [self.keyboardManager handlePress:press nextAction:next];
 }
 
+- (void)dispatchPresses:(NSSet<UIPress*>*)presses API_AVAILABLE(ios(13.4), tvos(10.0)) {
+  // # if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
+  if (@available(iOS 13.4, *)) {
+    for (UIPress* press in presses) {
+      NSLog(@"got press %@ - %ld", press.key, press.phase);
+
+      if (press.key == nil || press.phase == UIPressPhaseStationary ||
+          press.phase == UIPressPhaseChanged) {
+        continue;
+      }
+      //TODO: check if macOSKeysMapping is still needed here
+      NSMutableDictionary* keyMessage = [[@{
+        @"keymap" : @"ios",
+        @"type" : @"unknown",
+	@@ -1092,8 +1325,10 @@ - (void)dispatchPresses:(NSSet<UIPress*>*)presses API_AVAILABLE(ios(13.4)) {
+      }
+
+      [[_engine.get() keyEventChannel] sendMessage:keyMessage];
+      NSLog(@"sent message %@", keyMessage);
+    }
+  }
+  // # endif
+}
+
 // The documentation for presses* handlers (implemented below) is entirely
 // unclear about how to handle the case where some, but not all, of the presses
 // are handled here. I've elected to call super separately for each of the
@@ -1329,7 +1525,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 }
 
 #pragma mark - Orientation updates
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (void)onOrientationPreferencesUpdated:(NSNotification*)notification {
   // Notifications may not be on the iOS UI thread
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -1396,7 +1592,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 - (BOOL)shouldAutorotate {
   return YES;
 }
-
+#endif
 - (NSUInteger)supportedInterfaceOrientations {
   return _orientationPreferences;
 }
@@ -1546,6 +1742,9 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 // understood by the Flutter framework. See the settings system channel for more
 // information.
 - (NSString*)contrastMode {
+#ifdef TARGET_OS_TV
+  return @"normal";
+#else
   if (@available(iOS 13, *)) {
     UIAccessibilityContrast contrast = self.traitCollection.accessibilityContrast;
 
@@ -1557,10 +1756,12 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
   } else {
     return @"normal";
   }
+#endif
 }
 
 #pragma mark - Status bar style
 
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (UIStatusBarStyle)preferredStatusBarStyle {
   return _statusBarStyle;
 }
@@ -1584,7 +1785,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
     }
   });
 }
-
+#endif
 #pragma mark - Platform views
 
 - (std::shared_ptr<flutter::FlutterPlatformViewsController>&)platformViewsController {
@@ -1677,7 +1878,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 - (BOOL)isPresentingViewController {
   return self.presentedViewController != nil || self.isPresentingViewControllerAnimating;
 }
-
+#if !(defined(TARGET_OS_TV) && TARGET_OS_TV)
 - (flutter::PointerData)generatePointerDataForMouse API_AVAILABLE(ios(13.4)) {
   flutter::PointerData pointer_data;
 
@@ -1758,7 +1959,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 
   [_engine.get() dispatchPointerDataPacket:std::move(packet)];
 }
-
+#endif
 #pragma mark - State Restoration
 
 - (void)encodeRestorableStateWithCoder:(NSCoder*)coder {

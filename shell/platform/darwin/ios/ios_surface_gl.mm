@@ -10,6 +10,9 @@
 
 namespace flutter {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static IOSContextGL* CastToGLContext(const std::shared_ptr<IOSContext>& context) {
   return reinterpret_cast<IOSContextGL*>(context.get());
 }
@@ -95,5 +98,5 @@ bool IOSSurfaceGL::GLContextPresent(uint32_t fbo_id) {
 bool IOSSurfaceGL::AllowsDrawingWhenGpuDisabled() const {
   return false;
 }
-
+#pragma GCC diagnostic pop
 }  // namespace flutter

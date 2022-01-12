@@ -18,6 +18,7 @@
 # to list the dependency's destination directory.
 
 vars = {
+  'upc_git': 'https://github.com/4kssoft',
   'chromium_git': 'https://chromium.googlesource.com',
   'swiftshader_git': 'https://swiftshader.googlesource.com',
   'dart_git': 'https://dart.googlesource.com',
@@ -102,7 +103,7 @@ allowed_hosts = [
 ]
 
 deps = {
-  'src': 'https://github.com/flutter/buildroot.git' + '@' + '88c2c61d323e3141849611b2d7fd4ac14103c61f',
+  'src': Var('upc_git') + '/buildroot.git',# + '@' + '88c2c61d323e3141849611b2d7fd4ac14103c61f',
 
    # Fuchsia compatibility
    #
@@ -168,7 +169,7 @@ deps = {
    'https://boringssl.googlesource.com/boringssl.git' + '@' + Var('dart_boringssl_rev'),
 
   'src/third_party/dart':
-   Var('dart_git') + '/sdk.git' + '@' + Var('dart_revision'),
+   Var('upc_git') + '/dart-tv.git',# + '@' + Var('dart_revision'),
 
   # WARNING: Unused Dart dependencies in the list below till "WARNING:" marker are removed automatically - see create_updated_flutter_deps.py.
 
@@ -376,7 +377,7 @@ deps = {
    Var('dart_git') + '/root_certificates.git' + '@' + Var('dart_root_certificates_rev'),
 
   'src/third_party/skia':
-   Var('skia_git') + '/skia.git' + '@' +  Var('skia_revision'),
+   Var('upc_git') + '/skia.git',# + '@' +  Var('skia_revision'),
 
   'src/third_party/ocmock':
    Var('ocmock_git') + '@' +  Var('ocmock_tag'),

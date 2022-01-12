@@ -14,6 +14,9 @@
 
 namespace flutter {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 //------------------------------------------------------------------------------
 /// The iOS implementation of a |SwitchableGLContext|.
 ///
@@ -43,6 +46,7 @@ class IOSSwitchableGLContext final : public SwitchableGLContext {
 
   FML_DISALLOW_COPY_AND_ASSIGN(IOSSwitchableGLContext);
 };
+#pragma GCC diagnostic pop
 
 }  // namespace flutter
 

@@ -15,6 +15,8 @@
 @class CAEAGLLayer;
 
 namespace flutter {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 class IOSContextGL final : public IOSContext {
  public:
@@ -48,6 +50,7 @@ class IOSContextGL final : public IOSContext {
 
   FML_DISALLOW_COPY_AND_ASSIGN(IOSContextGL);
 };
+#pragma GCC diagnostic pop
 
 }  // namespace flutter
 

@@ -12,6 +12,9 @@
 
 namespace flutter {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 IOSRenderTargetGL::IOSRenderTargetGL(fml::scoped_nsobject<CAEAGLLayer> layer,
                                      fml::scoped_nsobject<EAGLContext> context)
     : layer_(std::move(layer)), context_(context) {
@@ -136,5 +139,5 @@ bool IOSRenderTargetGL::UpdateStorageSizeIfNecessary() {
 
   return true;
 }
-
+#pragma GCC diagnostic pop
 }  // namespace flutter
